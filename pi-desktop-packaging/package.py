@@ -101,14 +101,22 @@ def assemble(codex, pi, payload, output):
         'CFBundleShortVersionString': '0.1.0', 'LSUIElement': True,
         'LSMinimumSystemVersion': info.get('LSMinimumSystemVersion', '12.0'),
     }
-    icon = info.get('CFBundleIconFile')
-    if icon:
-        icon_file = resources / 'Pi Shell.app/Contents/Resources' / icon
-        if not icon_file.exists():
-            icon_file = icon_file.with_suffix('.icns')
-        if icon_file.is_file():
-            run('/bin/cp', icon_file, resources / 'pi-desktop.icns')
-            wrapper['CFBundleIconFile'] = 'pi-desktop.icns'
+    icon_file = Path(__file__).resolve().parent / 'assets/pi-desktop.icns'
+    if not icon_file.is_file():
+        raise FileNotFoundError('Pi icon asset is required')
+    shutil.copy2(icon_file, resources / 'pi-desktop.icns')
+    shutil.copy2(icon_file, resources / 'Pi Shell.app/Contents/Resources/pi-desktop.icns')
+    original_icon = info.get('CFBundleIconFile')
+    if original_icon:
+        old_icon = resources / 'Pi Shell.app/Contents/Resources' / original_icon
+        if not old_icon.suffix:
+            old_icon = old_icon.with_suffix('.icns')
+        shutil.copy2(icon_file, old_icon)
+    info['CFBundleIconFile'] = 'pi-desktop.icns'
+    info.pop('CFBundleIconName', None)
+    with info_path.open('wb') as file:
+        plistlib.dump(info, file)
+    wrapper['CFBundleIconFile'] = 'pi-desktop.icns'
     with (contents / 'Info.plist').open('wb') as file:
         plistlib.dump(wrapper, file)
     launcher = contents / 'MacOS/pi-desktop'

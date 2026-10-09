@@ -27,10 +27,11 @@ git -C "$REPO" checkout --detach 08c7d65dddb03a79d5b311d47a0381c299316a3b
 git -C "$REPO" apply --check "$TOOLS/codexhost-isolation.patch"
 git -C "$REPO" apply "$TOOLS/codexhost-isolation.patch"
 rustup target add "$RUST_TARGET"
-mkdir -p "$REPO/pi-desktop-packaging/extensions" "$REPO/pi-desktop-packaging/pi-runtime"
+mkdir -p "$REPO/pi-desktop-packaging/assets" "$REPO/pi-desktop-packaging/extensions" "$REPO/pi-desktop-packaging/pi-runtime"
 for file in build.sh launch.sh pi-tools.sh package.py test_packaging.py README.txt upstream.json codexhost-isolation.patch; do
   cp "$TOOLS/$file" "$REPO/pi-desktop-packaging/$file"
 done
+cp "$TOOLS/assets/pi-desktop.icns" "$TOOLS/assets/pi-desktop.png" "$REPO/pi-desktop-packaging/assets/"
 cp "$TOOLS/extensions/browser.ts" "$REPO/pi-desktop-packaging/extensions/browser.ts"
 cp "$PI_SOURCE/package.json" "$PI_SOURCE/package-lock.json" "$REPO/pi-desktop-packaging/pi-runtime/"
 cd "$REPO"
