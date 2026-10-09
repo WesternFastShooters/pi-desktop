@@ -62,7 +62,7 @@ Pi Desktop 基于 [CodexHost](https://github.com/BytePioneer-AI/codex-host)，�
 2. 打开 DMG，将 `Pi Desktop.app` 拖入 `Applications`。
 3. 从应用程序目录打开 Pi Desktop，选择本机 Pi 中已配置的模型。
 
-当前提供 Apple Silicon 版。安装包使用 ad-hoc 签名，尚未 Apple 公证。若 macOS 阻止打开，可在系统设置 → 隐私与安全性中查看该应用的提示并选择仍要打开；不同 macOS 版本的提示可能不同。不建议关闭系统安全保护。参见 [Apple 打开应用说明](https://support.apple.com/102445)。
+当前提供 Apple Silicon 版。DMG 下载约 **911 MiB**，安装后约 **1.9 GiB**。所用官方外壳安装包本身约 747 MiB；本项目额外包含 Pi、Node 和控制工具。安装包使用 ad-hoc 签名，尚未 Apple 公证。若 macOS 阻止打开，可在系统设置 → 隐私与安全性中查看该应用的提示并选择仍要打开；不同 macOS 版本的提示可能不同。不建议关闭系统安全保护。参见 [Apple 打开应用说明](https://support.apple.com/102445)。
 
 Release 同时提供 `SHA256SUMS.txt` 用于校验。预构建应用包含第三方桌面外壳；该外壳仍受其原有许可条款约束，仓库 LGPL 许可证不覆盖第三方外壳。
 
