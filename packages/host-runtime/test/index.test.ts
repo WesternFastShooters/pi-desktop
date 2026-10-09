@@ -4,6 +4,12 @@ import type { JsonRpcRequest } from "@codexhost/protocol-core";
 import { classifyCreateRequestRoute, packageMetadata } from "../src/index.js";
 
 describe("host-runtime package", () => {
+  it("routes the Pi Desktop product exclusively to Pi", () => {
+    for (const model of ["official/model", "codexhost/pi-native", "codexhost/claude-code-native"]) {
+      expect(classifyCreateRequestRoute({id: 42, method: "thread/start", params: {model}}, true)?.selectedHarness).toBe("pi");
+    }
+  });
+
   it("declares the composition-root dependencies", () => {
     expect(packageMetadata.dependencies).toHaveLength(7);
     expect(

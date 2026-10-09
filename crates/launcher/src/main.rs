@@ -304,10 +304,10 @@ fn discover_desktop(
     custom_install_root: Option<&Path>,
 ) -> Result<DesktopInstallation, Box<dyn Error>> {
     match custom_install_root {
-        #[cfg(target_os = "windows")]
+        #[cfg(any(target_os = "windows", target_os = "macos"))]
         Some(root) => Ok(codexhost_platform::discover_codex_desktop_from_root(root)?),
-        #[cfg(not(target_os = "windows"))]
-        Some(_) => Err("--custom-install is supported on Windows only".into()),
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        Some(_) => Err("--custom-install is supported on Windows and macOS only".into()),
         None => Ok(discover_codex_desktop()?),
     }
 }
@@ -1375,6 +1375,16 @@ fn main() -> ExitCode {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn pi_desktop_custom_install_reaches_macos_discovery() {
+        let root = std::env::temp_dir().join("pi-desktop-missing-fixture.app");
+        let error = super::discover_desktop(Some(&root))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("is unavailable"), "{error}");
+    }
+
     #[cfg(target_os = "windows")]
     use std::ffi::OsStr;
     use std::ffi::OsString;

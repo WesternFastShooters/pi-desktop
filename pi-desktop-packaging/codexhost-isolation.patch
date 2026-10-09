@@ -1,0 +1,772 @@
+diff --git a/crates/launcher/src/desktop_path_overrides.rs b/crates/launcher/src/desktop_path_overrides.rs
+index b127cc48..71679781 100644
+--- a/crates/launcher/src/desktop_path_overrides.rs
++++ b/crates/launcher/src/desktop_path_overrides.rs
+@@ -1,12 +1,13 @@
+ use std::ffi::OsString;
+ use std::path::Path;
+ 
+-const PATH_OVERRIDES: [&str; 5] = [
++const PATH_OVERRIDES: [&str; 6] = [
+     "HOME",
+     "USERPROFILE",
+     "ZDOTDIR",
+     "CODEX_HOME",
+     "CODEX_ELECTRON_USER_DATA_PATH",
++    "PI_CODING_AGENT_DIR",
+ ];
+ 
+ /// LaunchServices/AppX do not inherit the launcher's environment. Forward only
+@@ -115,4 +116,32 @@ mod tests {
+             .is_empty()
+         );
+     }
++
++    #[test]
++    fn forwards_absolute_pi_profile_but_rejects_relative_profile() {
++        let profile = std::env::temp_dir().join("Pi Desktop").join("pi");
++        assert_eq!(
++            forwarded([
++                (
++                    OsString::from("PI_CODING_AGENT_DIR"),
++                    profile.clone().into_os_string()
++                ),
++                (
++                    OsString::from("OPENAI_API_KEY"),
++                    OsString::from("synthetic-secret")
++                ),
++            ]),
++            [(
++                OsString::from("PI_CODING_AGENT_DIR"),
++                profile.into_os_string()
++            )]
++        );
++        assert!(
++            forwarded([(
++                OsString::from("PI_CODING_AGENT_DIR"),
++                OsString::from("relative")
++            ),])
++            .is_empty()
++        );
++    }
+ }
+diff --git a/crates/launcher/src/main.rs b/crates/launcher/src/main.rs
+index 3c7b1fe3..62db797b 100644
+--- a/crates/launcher/src/main.rs
++++ b/crates/launcher/src/main.rs
+@@ -304,10 +304,10 @@ fn discover_desktop(
+     custom_install_root: Option<&Path>,
+ ) -> Result<DesktopInstallation, Box<dyn Error>> {
+     match custom_install_root {
+-        #[cfg(target_os = "windows")]
++        #[cfg(any(target_os = "windows", target_os = "macos"))]
+         Some(root) => Ok(codexhost_platform::discover_codex_desktop_from_root(root)?),
+-        #[cfg(not(target_os = "windows"))]
+-        Some(_) => Err("--custom-install is supported on Windows only".into()),
++        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
++        Some(_) => Err("--custom-install is supported on Windows and macOS only".into()),
+         None => Ok(discover_codex_desktop()?),
+     }
+ }
+@@ -1375,6 +1375,16 @@ fn main() -> ExitCode {
+ 
+ #[cfg(test)]
+ mod tests {
++    #[cfg(target_os = "macos")]
++    #[test]
++    fn pi_desktop_custom_install_reaches_macos_discovery() {
++        let root = std::env::temp_dir().join("pi-desktop-missing-fixture.app");
++        let error = super::discover_desktop(Some(&root))
++            .unwrap_err()
++            .to_string();
++        assert!(error.contains("is unavailable"), "{error}");
++    }
++
+     #[cfg(target_os = "windows")]
+     use std::ffi::OsStr;
+     use std::ffi::OsString;
+diff --git a/crates/launcher/src/runtime_instance.rs b/crates/launcher/src/runtime_instance.rs
+index 42debcfd..c5ae6c73 100644
+--- a/crates/launcher/src/runtime_instance.rs
++++ b/crates/launcher/src/runtime_instance.rs
+@@ -129,7 +129,24 @@ pub fn default_descriptor_path() -> io::Result<PathBuf> {
+         .map(PathBuf::from)
+         .map(|home| home.join("Library").join("Application Support"))
+         .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "HOME is unavailable"))?;
+-    Ok(root.join("codexhost").join(RUNTIME_DESCRIPTOR_FILE))
++    descriptor_path_for_data_directory(root.join("codexhost"), env::var_os("CODEXHOST_DATA_DIR"))
++}
++
++#[cfg(target_os = "macos")]
++fn descriptor_path_for_data_directory(
++    default_directory: PathBuf,
++    data_directory: Option<std::ffi::OsString>,
++) -> io::Result<PathBuf> {
++    let directory = data_directory
++        .map(PathBuf::from)
++        .unwrap_or(default_directory);
++    if !directory.is_absolute() {
++        return Err(io::Error::new(
++            io::ErrorKind::InvalidInput,
++            "CODEXHOST_DATA_DIR must be absolute",
++        ));
++    }
++    Ok(directory.join(RUNTIME_DESCRIPTOR_FILE))
+ }
+ 
+ #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+@@ -328,6 +345,24 @@ mod tests {
+ 
+     use super::*;
+ 
++    #[cfg(target_os = "macos")]
++    #[test]
++    fn custom_data_directory_isolates_descriptor_and_guard() {
++        let default = env::temp_dir().join("codexhost");
++        let pi = env::temp_dir().join("Pi Desktop").join("host");
++        let official = descriptor_path_for_data_directory(default.clone(), None).unwrap();
++        let isolated =
++            descriptor_path_for_data_directory(default.clone(), Some(pi.clone().into_os_string()))
++                .unwrap();
++        assert_ne!(official, isolated);
++        assert_eq!(isolated.parent(), Some(pi.as_path()));
++        assert_ne!(
++            official.with_file_name(LAUNCHER_GUARD_FILE),
++            isolated.with_file_name(LAUNCHER_GUARD_FILE)
++        );
++        assert!(descriptor_path_for_data_directory(default, Some("relative".into())).is_err());
++    }
++
+     fn descriptor(control_port: u16) -> RuntimeDescriptor {
+         RuntimeDescriptor::new(10, control_port, "0123456789abcdef0123456789abcdef".into())
+             .expect("valid descriptor")
+diff --git a/crates/platform/src/installation.rs b/crates/platform/src/installation.rs
+index 5a8d2ecb..c674af3e 100644
+--- a/crates/platform/src/installation.rs
++++ b/crates/platform/src/installation.rs
+@@ -899,6 +899,19 @@ fn canonical_macho_executable(path: &Path, label: &str) -> Result<PathBuf, Platf
+ 
+ #[cfg(target_os = "macos")]
+ fn inspect_bundle(bundle: &Path) -> Result<DesktopInstallation, PlatformError> {
++    inspect_bundle_with_identity(bundle, false)
++}
++
++#[cfg(target_os = "macos")]
++fn inspect_custom_bundle(bundle: &Path) -> Result<DesktopInstallation, PlatformError> {
++    inspect_bundle_with_identity(bundle, true)
++}
++
++#[cfg(target_os = "macos")]
++fn inspect_bundle_with_identity(
++    bundle: &Path,
++    allow_pi_desktop: bool,
++) -> Result<DesktopInstallation, PlatformError> {
+     let bundle = bundle.canonicalize().map_err(|error| {
+         PlatformError::NotFound(format!(
+             "Codex App bundle '{}' is unavailable: {error}",
+@@ -919,7 +932,9 @@ fn inspect_bundle(bundle: &Path) -> Result<DesktopInstallation, PlatformError> {
+         ))
+     })?;
+     let bundle_identifier = required_string(dictionary, "CFBundleIdentifier", &bundle)?;
+-    if bundle_identifier != CODEX_BUNDLE_IDENTIFIER {
++    if bundle_identifier != CODEX_BUNDLE_IDENTIFIER
++        && !(allow_pi_desktop && bundle_identifier == "local.personal.pi-desktop.shell")
++    {
+         return Err(PlatformError::Invalid(format!(
+             "App bundle '{}' has unexpected identifier '{bundle_identifier}'",
+             bundle.display()
+@@ -1011,7 +1026,7 @@ fn discover_with_custom_root(
+     candidates: impl FnOnce() -> Vec<PathBuf>,
+ ) -> Result<DesktopInstallation, PlatformError> {
+     match custom_root {
+-        Some(root) => inspect_bundle(&root),
++        Some(root) => inspect_custom_bundle(&root),
+         None => discover_from_candidates(candidates()),
+     }
+ }
+@@ -1037,7 +1052,7 @@ pub fn discover_codex_desktop() -> Result<DesktopInstallation, PlatformError> {
+ #[cfg(target_os = "macos")]
+ pub fn discover_desktop_managed_codex_cli() -> Result<PathBuf, PlatformError> {
+     let installation = match custom_install_root(env::var_os) {
+-        Some(root) => inspect_bundle(&root)?,
++        Some(root) => inspect_custom_bundle(&root)?,
+         None => discover_codex_desktop()?,
+     };
+     Ok(installation.executable_codex_cli)
+@@ -1046,7 +1061,7 @@ pub fn discover_desktop_managed_codex_cli() -> Result<PathBuf, PlatformError> {
+ /// Inspect an explicit macOS bundle without selecting another installation.
+ #[cfg(target_os = "macos")]
+ pub fn discover_codex_desktop_from_root(root: &Path) -> Result<DesktopInstallation, PlatformError> {
+-    inspect_bundle(root)
++    inspect_custom_bundle(root)
+ }
+ 
+ #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+@@ -1221,4 +1236,25 @@ mod tests {
+             Err(PlatformError::Invalid(message)) if message.contains("multiple valid")
+         ));
+     }
++
++    #[test]
++    fn pi_desktop_requires_explicit_installation_and_preserves_path_identity() {
++        let official = temporary_bundle("Codex.app", "com.openai.codex", true);
++        let pi = temporary_bundle("Pi Shell.app", "local.personal.pi-desktop.shell", true);
++        assert!(discover_from_candidates([pi.clone()]).is_err());
++        let pi_installation = super::discover_codex_desktop_from_root(&pi).unwrap();
++        let official_installation = super::discover_codex_desktop_from_root(&official).unwrap();
++        assert_ne!(
++            pi_installation.desktop_executable,
++            official_installation.desktop_executable
++        );
++        assert_eq!(
++            pi_installation.identity,
++            DesktopIdentity::MacOsBundle {
++                bundle_identifier: "local.personal.pi-desktop.shell".into(),
++            }
++        );
++        let wrong = temporary_bundle("Wrong.app", "example.invalid", true);
++        assert!(super::discover_codex_desktop_from_root(&wrong).is_err());
++    }
+ }
+diff --git a/docs/index.md b/docs/index.md
+index 6a444930..cb285555 100644
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -6,6 +6,7 @@
+ 
+ | 文档 | 内容与阅读时机 |
+ | --- | --- |
++| [`platforms/macos/pi-desktop.md`](platforms/macos/pi-desktop.md) | Pi-only 个人封装、免登录入口、本机 Pi 复用与原生 Codex 禁用边界。 |
+ | [`PRIVACY.md`](PRIVACY.md) | 公开隐私政策：项目独立性、本地存储、Harness 集成、凭据处理与数据删除。 |
+ | [`project/README.zh-CN.md`](project/README.zh-CN.md) | 中文项目介绍、安装方式和功能概览；维护中文用户入口时阅读。根目录 `README.md` 为英文默认入口。 |
+ | [`project/README.ko.md`](project/README.ko.md) | 韩文项目介绍、安装方式和功能概览；维护韩文用户入口时阅读。 |
+diff --git a/docs/platforms/macos/pi-desktop.md b/docs/platforms/macos/pi-desktop.md
+new file mode 100644
+index 00000000..6a969c71
+--- /dev/null
++++ b/docs/platforms/macos/pi-desktop.md
+@@ -0,0 +1,27 @@
++# Pi Desktop 个人封装
++
++本分支是只运行 Pi 的 macOS 个人封装；不是上游完整 CodexHost 发行。
++
++用户打开应用 → 无需 OpenAI 登录 → Pi 默认代理 → 本机 Pi RPC → 官方外壳显示结果。
++
++- Launcher 优先使用本机 Pi，可回退到包内 Pi；复用 `~/.pi/agent`。
++- Host、原生外壳后端及 Electron 配置在 `~/Library/Application Support/Pi Desktop` 下隔离。
++- 原生后端以无需 OpenAI 身份的本地 provider 配置启动，仅用于外壳服务。
++- Renderer 的启用代理只有 Pi；代理菜单和 `#` 菜单不列 Codex。
++- DraftAgentController 不重新注入原生 Codex；Pi 模式不能切回 Codex。
++- Host 将新会话分类限定到 Pi，拒绝原生创建、生成与 fork 请求。
++- 官方 `app.asar` 原样保留；副本重新签名时去掉厂商受限权限及共享组。
++- 不修改、启动或退出 `/Applications/ChatGPT.app`；仅使用独立下载的只读安装输入。
++
++构建与验证见 [`pi-desktop-packaging/README.txt`](../../../pi-desktop-packaging/README.txt)。
++测试覆盖 Pi-only 默认、禁止 Codex 切换、Host 新会话路由、独立数据目录、应用发现、签名权限与打包检查。
++侧边聊天通过原生 Pi fork 继承历史。`thread/inject_items` 验证文本消息，经 Adapter 的可选 `injectContext` 能力调用 Pi 扩展命令。扩展写入隐藏的原生 custom 消息，不启动模型 Turn。Pi 历史保存边界说明，后续模型调用能读取。不能用成功空响应替代注入。
++
++Pi 控制工具显式随启动加载，不安装进全局 `~/.pi/agent`：
++- `pi-chrome-use@1.1.1` 提供 `browser_execute`。封装按会话启动私有 Chrome profile，关闭 Pi 会话时结束该 Chrome；不接管用户现有浏览器。需要已安装 Google Chrome。
++- 优先复用本机已配置的 `@injaneity/pi-computer-use` 及其辅助应用和系统授权；缺少时显式加载包内版本。不会重复注册同名工具。包内 `@injaneity/pi-computer-use@0.5.1` 提供 `find_roots`、`observe_ui`、`act_ui` 等。包内独立签名辅助应用运行在 Pi 专用 socket；辅助功能和屏幕录制由 macOS 用户授权。RPC 启动时延迟权限检查，普通聊天不受影响。
++- 两项 MIT 依赖保留原许可证；封装的两处适配仅延迟启动授权、允许包内 helper 自主管理 Pi 专用 socket。
++- 官方 macOS native helper 修复已包含在固定上游，见 [PR164](https://github.com/BytePioneer-AI/codex-host/pull/164)。官方代理的工具启动兼容不等于 Pi 工具注册；本封装显式加载 Pi 扩展。
++
++真实验收必须覆盖免登录、两个代理菜单仅 Pi、本机 Pi 回答与工具、取消、退出重开及最终 DMG。
++不将构建、签名或菜单出现当成真实会话验收。
+diff --git a/packages/adapters/pi/src/pi-adapter.ts b/packages/adapters/pi/src/pi-adapter.ts
+index 0b5ccdf2..f176dda2 100644
+--- a/packages/adapters/pi/src/pi-adapter.ts
++++ b/packages/adapters/pi/src/pi-adapter.ts
+@@ -1,7 +1,12 @@
+ import { createPiUsageStatistics } from "./pi-usage-statistics.js";
+ import { fetchPiAccounts } from "./account-balance.js";
+ import { createPiCredentialImports } from "./pi-credential-imports.js";
+-import { PI_FAST_COMMAND, piFastModelKeys, withPiFast } from "./pi-fast-mode.js";
++import {
++  PI_CONTEXT_COMMAND,
++  PI_FAST_COMMAND,
++  piFastModelKeys,
++  withPiFast,
++} from "./pi-fast-mode.js";
+ import { persistEmptyPiSession, readPiEmptySessionConfiguration } from "./pi-empty-session.js";
+ import { createTwoFilesPatch, parsePatch } from "diff";
+ import { randomUUID } from "node:crypto";
+@@ -151,6 +156,7 @@ export interface PiTurnTransport {
+   verifySessionCwd(expectedCwd: string): Promise<void>;
+   selectModel(model: PiNativeModelRef): Promise<PiSessionState>;
+   supportsFastMode?(): Promise<boolean>;
++  injectContext?(messages: readonly { role: string; text: string }[]): Promise<void>;
+   selectFastMode?(enabled: boolean): Promise<PiSessionState>;
+   selectThinkingOption(thinkingOptionId: HarnessThinkingOptionId): Promise<PiSessionState>;
+   compact(
+@@ -696,6 +702,28 @@ class PiHarnessSession implements HarnessSession {
+     queueMicrotask(() => this.#fault(error));
+   }
+ 
++  async injectContext(
++    messages: readonly { role: string; text: string }[],
++  ): Promise<HarnessResult<void>> {
++    if (this.#phase !== "open" || this.#active || this.#acceptingTurn || this.#configuring)
++      return {
++        ok: false,
++        error: invalidState("Pi context injection requires an idle open session"),
++      };
++    this.#configuring = true;
++    try {
++      const transport = await this.#ensureTransport();
++      if (!transport.injectContext)
++        return { ok: false, error: invalidState("Pi context injection is unavailable") };
++      await transport.injectContext(messages);
++      return { ok: true, value: undefined };
++    } catch (error) {
++      return { ok: false, error: normalizedError(error, "nativeFailure") };
++    } finally {
++      this.#configuring = false;
++    }
++  }
++
+   async readSnapshot(): Promise<HarnessResult<HostThreadSnapshot>> {
+     if (this.#phase !== "open") {
+       return { ok: false, error: invalidState("Pi Session is not open") };
+@@ -1139,7 +1167,9 @@ class PiHarnessSession implements HarnessSession {
+       try {
+         this.#liveCommands = piLiveCommandCatalog(
+           piCommandCatalog,
+-          (await transport.getCommands()).filter((command) => command.name !== PI_FAST_COMMAND),
++          (await transport.getCommands()).filter(
++            (command) => command.name !== PI_FAST_COMMAND && command.name !== PI_CONTEXT_COMMAND,
++          ),
+         );
+       } catch {
+         // Keep the last known catalog.
+diff --git a/packages/adapters/pi/src/pi-fast-mode.ts b/packages/adapters/pi/src/pi-fast-mode.ts
+index e96de11a..a87088db 100644
+--- a/packages/adapters/pi/src/pi-fast-mode.ts
++++ b/packages/adapters/pi/src/pi-fast-mode.ts
+@@ -7,11 +7,19 @@ import type { HarnessModelCatalog } from "@codexhost/shared-contracts";
+ import { readPiCodexProviderNames } from "./pi-credential-imports.js";
+ import { decodePiModelRef, encodePiModelRef, type PiNativeModel } from "./pi-model-catalog.js";
+ 
++export const PI_CONTEXT_COMMAND = "pi-desktop-inject-context";
+ export const PI_FAST_COMMAND = "codexhost-fast-mode";
+ export const PI_FAST_ACK = "codexhost-fast-mode:";
+ 
+ /** Loaded explicitly by Host, never installed in Pi's global settings. Off is inert. */
+ export const PI_FAST_EXTENSION = `export default function(pi) {
++  pi.registerCommand("${PI_CONTEXT_COMMAND}", {
++    description: "Append side conversation reference context without a model turn",
++    handler: async (args) => {
++      const messages = JSON.parse(Buffer.from(args, "base64").toString("utf8"));
++      for (const message of messages) pi.sendMessage({ customType: "pi-desktop-context", content: message.role + ":\\n" + message.text, display: false }, { triggerTurn: false });
++    },
++  });
+   let target;
+   const wrapped = new Set();
+   pi.on("model_select", (_event, ctx) => {
+diff --git a/packages/adapters/pi/src/pi-rpc-session.ts b/packages/adapters/pi/src/pi-rpc-session.ts
+index 5cb8cec0..b5909765 100644
+--- a/packages/adapters/pi/src/pi-rpc-session.ts
++++ b/packages/adapters/pi/src/pi-rpc-session.ts
+@@ -12,7 +12,12 @@ import {
+ } from "@codexhost/shared-contracts";
+ 
+ import { parsePiNativeCommands, type PiNativeCommand } from "./pi-slash-commands.js";
+-import { ensurePiFastExtension, PI_FAST_ACK, PI_FAST_COMMAND } from "./pi-fast-mode.js";
++import {
++  ensurePiFastExtension,
++  PI_CONTEXT_COMMAND,
++  PI_FAST_ACK,
++  PI_FAST_COMMAND,
++} from "./pi-fast-mode.js";
+ import type { PiEmptySessionConfiguration } from "./pi-empty-session.js";
+ import { resolvePiExecutable, withNodeRuntimeOnPath } from "./command.js";
+ import type { PiSessionHistory } from "./pi-history.js";
+@@ -791,6 +796,13 @@ export class PiRpcSession {
+     }
+   }
+ 
++  async injectContext(messages: readonly { role: string; text: string }[]): Promise<void> {
++    if (!(await this.getCommands()).some((c) => c.name === PI_CONTEXT_COMMAND))
++      throw new Error("Pi context extension is unavailable");
++    const payload = Buffer.from(JSON.stringify(messages)).toString("base64");
++    await this.#send("prompt", { message: `/${PI_CONTEXT_COMMAND} ${payload}` });
++  }
++
+   async supportsFastMode(): Promise<boolean> {
+     return (await this.getCommands()).some(
+       (command) => command.name === PI_FAST_COMMAND && command.source === "extension",
+diff --git a/packages/harness-adapter/src/text-session.ts b/packages/harness-adapter/src/text-session.ts
+index d66ed8ea..63db4ba6 100644
+--- a/packages/harness-adapter/src/text-session.ts
++++ b/packages/harness-adapter/src/text-session.ts
+@@ -566,6 +566,8 @@ export interface HarnessSession {
+   readonly outputs: AsyncIterable<HarnessOutput>;
+   readonly commands?: HarnessCommandCapability;
+ 
++  /** Append reference context without starting a model Turn. */
++  injectContext?(messages: readonly { role: string; text: string }[]): Promise<HarnessResult<void>>;
+   refreshUsage?(): Promise<void>;
+   /** Native background work (e.g. a background command) is still running; the Session must not be released. */
+   hasBackgroundWork?(): boolean;
+diff --git a/packages/host-runtime/src/app-server-host.ts b/packages/host-runtime/src/app-server-host.ts
+index 683ca321..8674e77b 100644
+--- a/packages/host-runtime/src/app-server-host.ts
++++ b/packages/host-runtime/src/app-server-host.ts
+@@ -520,9 +520,17 @@ function isHostQuestionRequestId(value: unknown): value is HostQuestionRequestId
+ /** Only an explicit codexhost transport Model selects an External Harness. */
+ export function classifyCreateRequestRoute(
+   request: JsonRpcRequest,
++  piOnly = false,
+ ): CreateRequestRouteObservation | null {
+   const route = decodeCreateRoute(request);
+   if (!route) return null;
++  if (piOnly)
++    return {
++      requestMethod: "thread/start",
++      modelCarrier: "pi-transport",
++      selectedHarness: "pi",
++      selectionSource: "transport-model",
++    };
+   if (route.harnessId !== "codex") {
+     return {
+       requestMethod: "thread/start",
+@@ -1823,7 +1831,7 @@ export class AppServerHost {
+     }
+     let createRoute: CreateRequestRouteObservation | null;
+     try {
+-      createRoute = classifyCreateRequestRoute(request);
++      createRoute = classifyCreateRequestRoute(request, true);
+     } catch (error) {
+       await this.#writer.json(rpcError(request, -32602, errorMessage(error)));
+       return;
+@@ -2085,6 +2093,58 @@ export class AppServerHost {
+         return;
+       }
+     }
++    if (
++      request.method === "thread/inject_items" &&
++      isRecord(request.params) &&
++      typeof request.params.threadId === "string"
++    ) {
++      const resolution = await this.#resolveExternalThread(request.params.threadId);
++      if (resolution.kind === "error") {
++        await this.#writer.json(rpcError(request, resolution.error.code, resolution.error.message));
++        return;
++      }
++      if (resolution.kind === "external") {
++        try {
++          const items = request.params.items;
++          if (!Array.isArray(items) || items.length > 100)
++            throw new Error("Context items must be a bounded array");
++          const messages = items.map((item) => {
++            if (
++              !isRecord(item) ||
++              item.type !== "message" ||
++              !["user", "assistant", "developer", "system"].includes(String(item.role)) ||
++              !Array.isArray(item.content)
++            )
++              throw new Error("Only text context messages are supported");
++            const text = item.content
++              .map((part) => {
++                if (
++                  !isRecord(part) ||
++                  !["input_text", "output_text"].includes(String(part.type)) ||
++                  typeof part.text !== "string"
++                )
++                  throw new Error("Only text context is supported");
++                return part.text;
++              })
++              .join("\n");
++            if (text.length > 1_000_000) throw new Error("Context message is too large");
++            return { role: String(item.role), text };
++          });
++          const inject = resolution.thread.session.injectContext;
++          if (!inject) throw new Error("Harness does not support context injection");
++          const result = await inject.call(resolution.thread.session, messages);
++          if (!result.ok) {
++            const failure = mapExternalThreadHarnessError(result.error, "turn");
++            await this.#writer.json(rpcError(request, failure.code, result.error.message));
++            return;
++          }
++          await this.#writer.json(rpcEnvelope(request, { result: {} }));
++        } catch (error) {
++          await this.#writer.json(rpcError(request, -32602, errorMessage(error)));
++        }
++        return;
++      }
++    }
+     if (
+       request.method.startsWith("thread/") &&
+       !EXPLICIT_EXTERNAL_THREAD_METHODS.has(request.method) &&
+@@ -2157,6 +2217,10 @@ export class AppServerHost {
+     request: JsonRpcRequest,
+     frame: Buffer<ArrayBufferLike>,
+   ): Promise<void> {
++    if (["thread/start", "turn/start", "thread/fork"].includes(request.method)) {
++      await this.#writer.json(rpcError(request, -32070, "Pi Desktop only runs Pi sessions"));
++      return;
++    }
+     if (this.#options.externalOnly) {
+       await this.#writer.json(
+         rpcError(request, -32601, "Shared Thread service only handles external Harness Threads"),
+diff --git a/packages/host-runtime/test/index.test.ts b/packages/host-runtime/test/index.test.ts
+index 4b81650d..794b8e63 100644
+--- a/packages/host-runtime/test/index.test.ts
++++ b/packages/host-runtime/test/index.test.ts
+@@ -4,6 +4,12 @@ import type { JsonRpcRequest } from "@codexhost/protocol-core";
+ import { classifyCreateRequestRoute, packageMetadata } from "../src/index.js";
+ 
+ describe("host-runtime package", () => {
++  it("routes the Pi Desktop product exclusively to Pi", () => {
++    for (const model of ["official/model", "codexhost/pi-native", "codexhost/claude-code-native"]) {
++      expect(classifyCreateRequestRoute({id: 42, method: "thread/start", params: {model}}, true)?.selectedHarness).toBe("pi");
++    }
++  });
++
+   it("declares the composition-root dependencies", () => {
+     expect(packageMetadata.dependencies).toHaveLength(7);
+     expect(
+diff --git a/packages/host-runtime/test/pi-side-context.test.ts b/packages/host-runtime/test/pi-side-context.test.ts
+new file mode 100644
+index 00000000..eb618a94
+--- /dev/null
++++ b/packages/host-runtime/test/pi-side-context.test.ts
+@@ -0,0 +1,78 @@
++import { describe, it, expect } from "vitest";
++import { FakeHarnessAdapter } from "@codexhost/harness-adapter/testing";
++import { encodeExternalTransportSelection } from "@codexhost/protocol-core";
++import { harnessIdSchema } from "@codexhost/shared-contracts";
++import {
++  createFixture,
++  startExternalThread,
++  writeRequest,
++  requestId,
++  closeFixture,
++} from "./app-server-host-fixture.js";
++
++describe("Pi side conversation context", () => {
++  it("injects the boundary into the external native session before acknowledging", async () => {
++    const adapter = new FakeHarnessAdapter(harnessIdSchema.parse("pi"));
++    const fixture = createFixture({ externalAdapters: new Map([["pi", adapter]]) });
++    try {
++      const threadId = await startExternalThread(
++        fixture,
++        encodeExternalTransportSelection("pi", { model: adapter.catalog.defaultModel! }),
++      );
++      const received: unknown[] = [];
++      Object.assign(adapter.sessions[0]!, {
++        injectContext: async (items: unknown) => {
++          received.push(items);
++          return { ok: true, value: undefined };
++        },
++      });
++      const items = [
++        {
++          type: "message",
++          role: "user",
++          content: [{ type: "input_text", text: "Inherited history is reference only." }],
++        },
++      ];
++      writeRequest(fixture.desktopInput, {
++        id: 22,
++        method: "thread/inject_items",
++        params: { threadId, items },
++      });
++      const response = await fixture.collector.waitFor((m) => requestId(m, 22));
++      expect(response.error).toBeUndefined();
++      expect(received).toEqual([[{ role: "user", text: "Inherited history is reference only." }]]);
++      writeRequest(fixture.desktopInput, {
++        id: 23,
++        method: "thread/inject_items",
++        params: {
++          threadId,
++          items: [
++            {
++              type: "message",
++              role: "user",
++              content: [{ type: "input_image", image_url: "not-text" }],
++            },
++          ],
++        },
++      });
++      const invalid = await fixture.collector.waitFor((m) => requestId(m, 23));
++      expect(invalid.error).toMatchObject({ code: -32602 });
++      expect(received).toHaveLength(1);
++      Object.assign(adapter.sessions[0]!, {
++        injectContext: async () => ({
++          ok: false,
++          error: { code: "sessionBusy", message: "busy", retryable: true },
++        }),
++      });
++      writeRequest(fixture.desktopInput, {
++        id: 24,
++        method: "thread/inject_items",
++        params: { threadId, items },
++      });
++      const busy = await fixture.collector.waitFor((m) => requestId(m, 24));
++      expect(busy.error).toMatchObject({ code: -32072, message: "busy" });
++    } finally {
++      await closeFixture(fixture);
++    }
++  });
++});
+diff --git a/packages/renderer-extension/src/agent-selection-state.ts b/packages/renderer-extension/src/agent-selection-state.ts
+index f42cf092..21e3f0fa 100644
+--- a/packages/renderer-extension/src/agent-selection-state.ts
++++ b/packages/renderer-extension/src/agent-selection-state.ts
+@@ -62,6 +62,7 @@ export class DraftAgentController<Composer extends object> {
+   readonly #idFactory: (sequence: number) => string;
+   readonly #defaultAgent: RendererAgent;
+   #enabledAgents: ReadonlySet<RendererAgent>;
++  readonly #nativeCodexEnabled: boolean;
+   readonly #targetStates: TargetState[] = [];
+   readonly #modelRequestGenerations = new WeakMap<MutableComposerState, number>();
+   readonly #ownershipRequestGenerations = new WeakMap<MutableComposerState, number>();
+@@ -76,14 +77,13 @@ export class DraftAgentController<Composer extends object> {
+   constructor(options: DraftAgentControllerOptions = {}) {
+     this.#idFactory = options.idFactory ?? defaultIdFactory;
+     this.#enabledAgents = new Set(options.enabledAgents ?? DEFAULT_RENDERER_AGENTS);
+-    if (!this.#enabledAgents.has("codex"))
+-      throw new Error("Renderer enabled Agents must include Codex");
++    this.#nativeCodexEnabled = this.#enabledAgents.has("codex");
+     this.#defaultAgent = options.defaultAgent ?? "codex";
+ 
+     this.#lastSubmittedAgent = this.#defaultAgent;
+   }
+   setEnabledAgents(agents: readonly RendererAgent[]): void {
+-    this.#enabledAgents = new Set(["codex", ...agents]);
++    this.#enabledAgents = new Set([...(this.#nativeCodexEnabled ? ["codex"] : []), ...agents.filter(agent => this.#nativeCodexEnabled || agent !== "codex")]);
+   }
+   get(composer: Composer): Readonly<DraftComposerState> {
+     return this.#state(composer);
+@@ -106,7 +106,7 @@ export class DraftAgentController<Composer extends object> {
+     // A saved preference survives directory loading or plugin removal. Availability gates
+     // submission; silently changing its owner to Codex would send work to the wrong Harness.
+     const preferredAgent = preferredNewThreadAgent ?? this.#lastSubmittedAgent;
+-    const state = this.#state(composer, isDefaultTarget(target) ? preferredAgent : "codex");
++    const state = this.#state(composer, isDefaultTarget(target) ? preferredAgent : this.#defaultAgent);
+     if (isIdentifiedTarget(target)) this.#targetStates.push({ target, state });
+     return state;
+   }
+@@ -145,7 +145,7 @@ export class DraftAgentController<Composer extends object> {
+     let state = this.#targetState(target);
+     if (!state) {
+       state = {
+-        agent: "codex",
++        agent: this.#defaultAgent,
+         phase: "draft",
+         composerId: this.#idFactory(++this.#composerSequence),
+       };
+diff --git a/packages/renderer-extension/src/install-renderer-binding.ts b/packages/renderer-extension/src/install-renderer-binding.ts
+index 9bdac5dc..59532ec0 100644
+--- a/packages/renderer-extension/src/install-renderer-binding.ts
++++ b/packages/renderer-extension/src/install-renderer-binding.ts
+@@ -5,11 +5,19 @@ import {
+ } from "./renderer-binding-probe.js";
+ import { installCurrentRendererAdapter } from "./versioned-renderer-adapter.js";
+ 
++export const PI_DESKTOP_RENDERER_DEFAULTS = {
++  enabledAgents: ["pi"],
++  defaultAgent: "pi",
++};
++
+ export function installRendererBinding(
+   enabledAgents?: readonly RendererAgent[],
+ ): RendererBindingProbeApi {
+   window.__codexhostRendererBindingProbeV1?.dispose();
+-  const binding = installRendererBindingProbe({ ...(enabledAgents ? { enabledAgents } : {}) });
++  const binding = installRendererBindingProbe({
++    ...PI_DESKTOP_RENDERER_DEFAULTS,
++    ...(enabledAgents ? { enabledAgents } : {}),
++  });
+   try {
+     const adapter = installCurrentRendererAdapter();
+     binding.setAdapter(adapter.status, adapter.dispose, adapter.applyAgent, adapter.modelControl);
+diff --git a/packages/renderer-extension/src/renderer-binding-probe.ts b/packages/renderer-extension/src/renderer-binding-probe.ts
+index e7753344..67a50b80 100644
+--- a/packages/renderer-extension/src/renderer-binding-probe.ts
++++ b/packages/renderer-extension/src/renderer-binding-probe.ts
+@@ -745,6 +745,7 @@ export function installRendererBindingProbe(
+   if (existing) return existing;
+ 
+   const enabledAgents = [...new Set(options.enabledAgents ?? DEFAULT_RENDERER_AGENTS)];
++  const nativeCodexEnabled = enabledAgents.includes("codex");
+   const controller = new DraftAgentController<Element>({
+     enabledAgents,
+     ...(options.defaultAgent ? { defaultAgent: options.defaultAgent } : {}),
+@@ -2354,7 +2355,7 @@ export function installRendererBindingProbe(
+           enabledAgents.splice(
+             0,
+             enabledAgents.length,
+-            "codex",
++            ...(nativeCodexEnabled ? ["codex"] : []),
+             ...new Set(
+               [...harnessAvailabilityByHost.values()].flatMap(
+                 ({ plugins }) => plugins?.map(({ id }) => id) ?? [],
+diff --git a/packages/renderer-extension/src/renderer-composer-dom.ts b/packages/renderer-extension/src/renderer-composer-dom.ts
+index 13e7bd35..2f15065b 100644
+--- a/packages/renderer-extension/src/renderer-composer-dom.ts
++++ b/packages/renderer-extension/src/renderer-composer-dom.ts
+@@ -729,7 +729,7 @@ export function mountComposerAgentControl(
+       }
+       const next = mountRendererAgentPicker(
+         composerId,
+-        ["codex", ...plugins.map(({ id }) => id)],
++        [...(enabledAgents.includes("codex") ? ["codex"] : []), ...plugins.map(({ id }) => id)],
+         onSelect,
+         onDownload,
+         onOpenProviderPicker,
+diff --git a/packages/renderer-extension/test/pi-desktop-defaults.test.ts b/packages/renderer-extension/test/pi-desktop-defaults.test.ts
+new file mode 100644
+index 00000000..1dd1999c
+--- /dev/null
++++ b/packages/renderer-extension/test/pi-desktop-defaults.test.ts
+@@ -0,0 +1,20 @@
++import { expect, test, vi } from "vitest";
++import { DraftAgentController } from "../src/agent-selection-state.js";
++import { PI_DESKTOP_RENDERER_DEFAULTS } from "../src/install-renderer-binding.js";
++
++test("Pi Desktop installs the real controller and starts new drafts on Pi", () => {
++  const controller = new DraftAgentController(PI_DESKTOP_RENDERER_DEFAULTS);
++  expect(controller.get({}).agent).toBe("pi");
++  expect(PI_DESKTOP_RENDERER_DEFAULTS.enabledAgents).toEqual(["pi"]);
++});
++
++test("Pi-only controller cannot regain or switch to native Codex", async () => {
++  const controller = new DraftAgentController({enabledAgents: ["pi"], defaultAgent: "pi"});
++  const composer = {};
++  controller.mount(composer, ["default"]);
++  controller.setEnabledAgents(["pi"]);
++  const operations = {applyAgent: vi.fn(() => true), clearPrewarm: vi.fn(async () => {})};
++  expect(await controller.switchAgent(composer, "codex", operations)).toBe(false);
++  expect(operations.applyAgent).not.toHaveBeenCalled();
++  expect(controller.get(composer).agent).toBe("pi");
++});
+diff --git a/scripts/release/harness-plugins.json b/scripts/release/harness-plugins.json
+index 22384418..07c2863b 100644
+--- a/scripts/release/harness-plugins.json
++++ b/scripts/release/harness-plugins.json
+@@ -1,22 +1,6 @@
+ {
+   "plugins": [
+-    "packages/adapters/pi",
+-    "packages/adapters/claude-code",
+-    "packages/adapters/deepseek-harness",
+-    "packages/adapters/opencode",
+-    "packages/adapters/grok",
+-    "packages/adapters/omp",
+-    "packages/adapters/antigravity",
+-    "packages/adapters/kiro-cli",
+-    "packages/adapters/codebuddy",
+-    "packages/adapters/workbuddy",
+-    "packages/adapters/cursor-cli",
+-    "packages/adapters/hermes",
+-    "packages/adapters/qoder",
+-    "packages/adapters/qoder-cn",
+-    "packages/adapters/kimi-code",
+-    "packages/adapters/zcode",
+-    "packages/adapters/codex-usage"
++    "packages/adapters/pi"
+   ],
+   "runtimePackages": [
+     "@agentclientprotocol/sdk",

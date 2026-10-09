@@ -12,7 +12,12 @@ import {
 } from "@codexhost/shared-contracts";
 
 import { parsePiNativeCommands, type PiNativeCommand } from "./pi-slash-commands.js";
-import { ensurePiFastExtension, PI_FAST_ACK, PI_FAST_COMMAND } from "./pi-fast-mode.js";
+import {
+  ensurePiFastExtension,
+  PI_CONTEXT_COMMAND,
+  PI_FAST_ACK,
+  PI_FAST_COMMAND,
+} from "./pi-fast-mode.js";
 import type { PiEmptySessionConfiguration } from "./pi-empty-session.js";
 import { resolvePiExecutable, withNodeRuntimeOnPath } from "./command.js";
 import type { PiSessionHistory } from "./pi-history.js";
@@ -789,6 +794,13 @@ export class PiRpcSession {
       if (error instanceof PiRpcFaultError) this.#fail(error);
       throw error;
     }
+  }
+
+  async injectContext(messages: readonly { role: string; text: string }[]): Promise<void> {
+    if (!(await this.getCommands()).some((c) => c.name === PI_CONTEXT_COMMAND))
+      throw new Error("Pi context extension is unavailable");
+    const payload = Buffer.from(JSON.stringify(messages)).toString("base64");
+    await this.#send("prompt", { message: `/${PI_CONTEXT_COMMAND} ${payload}` });
   }
 
   async supportsFastMode(): Promise<boolean> {

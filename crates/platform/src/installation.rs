@@ -899,6 +899,19 @@ fn canonical_macho_executable(path: &Path, label: &str) -> Result<PathBuf, Platf
 
 #[cfg(target_os = "macos")]
 fn inspect_bundle(bundle: &Path) -> Result<DesktopInstallation, PlatformError> {
+    inspect_bundle_with_identity(bundle, false)
+}
+
+#[cfg(target_os = "macos")]
+fn inspect_custom_bundle(bundle: &Path) -> Result<DesktopInstallation, PlatformError> {
+    inspect_bundle_with_identity(bundle, true)
+}
+
+#[cfg(target_os = "macos")]
+fn inspect_bundle_with_identity(
+    bundle: &Path,
+    allow_pi_desktop: bool,
+) -> Result<DesktopInstallation, PlatformError> {
     let bundle = bundle.canonicalize().map_err(|error| {
         PlatformError::NotFound(format!(
             "Codex App bundle '{}' is unavailable: {error}",
@@ -919,7 +932,9 @@ fn inspect_bundle(bundle: &Path) -> Result<DesktopInstallation, PlatformError> {
         ))
     })?;
     let bundle_identifier = required_string(dictionary, "CFBundleIdentifier", &bundle)?;
-    if bundle_identifier != CODEX_BUNDLE_IDENTIFIER {
+    if bundle_identifier != CODEX_BUNDLE_IDENTIFIER
+        && !(allow_pi_desktop && bundle_identifier == "local.personal.pi-desktop.shell")
+    {
         return Err(PlatformError::Invalid(format!(
             "App bundle '{}' has unexpected identifier '{bundle_identifier}'",
             bundle.display()
@@ -1011,7 +1026,7 @@ fn discover_with_custom_root(
     candidates: impl FnOnce() -> Vec<PathBuf>,
 ) -> Result<DesktopInstallation, PlatformError> {
     match custom_root {
-        Some(root) => inspect_bundle(&root),
+        Some(root) => inspect_custom_bundle(&root),
         None => discover_from_candidates(candidates()),
     }
 }
@@ -1037,7 +1052,7 @@ pub fn discover_codex_desktop() -> Result<DesktopInstallation, PlatformError> {
 #[cfg(target_os = "macos")]
 pub fn discover_desktop_managed_codex_cli() -> Result<PathBuf, PlatformError> {
     let installation = match custom_install_root(env::var_os) {
-        Some(root) => inspect_bundle(&root)?,
+        Some(root) => inspect_custom_bundle(&root)?,
         None => discover_codex_desktop()?,
     };
     Ok(installation.executable_codex_cli)
@@ -1046,7 +1061,7 @@ pub fn discover_desktop_managed_codex_cli() -> Result<PathBuf, PlatformError> {
 /// Inspect an explicit macOS bundle without selecting another installation.
 #[cfg(target_os = "macos")]
 pub fn discover_codex_desktop_from_root(root: &Path) -> Result<DesktopInstallation, PlatformError> {
-    inspect_bundle(root)
+    inspect_custom_bundle(root)
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
@@ -1220,5 +1235,26 @@ mod tests {
             discover_from_candidates([first, second]),
             Err(PlatformError::Invalid(message)) if message.contains("multiple valid")
         ));
+    }
+
+    #[test]
+    fn pi_desktop_requires_explicit_installation_and_preserves_path_identity() {
+        let official = temporary_bundle("Codex.app", "com.openai.codex", true);
+        let pi = temporary_bundle("Pi Shell.app", "local.personal.pi-desktop.shell", true);
+        assert!(discover_from_candidates([pi.clone()]).is_err());
+        let pi_installation = super::discover_codex_desktop_from_root(&pi).unwrap();
+        let official_installation = super::discover_codex_desktop_from_root(&official).unwrap();
+        assert_ne!(
+            pi_installation.desktop_executable,
+            official_installation.desktop_executable
+        );
+        assert_eq!(
+            pi_installation.identity,
+            DesktopIdentity::MacOsBundle {
+                bundle_identifier: "local.personal.pi-desktop.shell".into(),
+            }
+        );
+        let wrong = temporary_bundle("Wrong.app", "example.invalid", true);
+        assert!(super::discover_codex_desktop_from_root(&wrong).is_err());
     }
 }

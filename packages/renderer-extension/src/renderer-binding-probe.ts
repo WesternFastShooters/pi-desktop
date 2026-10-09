@@ -745,6 +745,7 @@ export function installRendererBindingProbe(
   if (existing) return existing;
 
   const enabledAgents = [...new Set(options.enabledAgents ?? DEFAULT_RENDERER_AGENTS)];
+  const nativeCodexEnabled = enabledAgents.includes("codex");
   const controller = new DraftAgentController<Element>({
     enabledAgents,
     ...(options.defaultAgent ? { defaultAgent: options.defaultAgent } : {}),
@@ -2354,7 +2355,7 @@ export function installRendererBindingProbe(
           enabledAgents.splice(
             0,
             enabledAgents.length,
-            "codex",
+            ...(nativeCodexEnabled ? ["codex"] : []),
             ...new Set(
               [...harnessAvailabilityByHost.values()].flatMap(
                 ({ plugins }) => plugins?.map(({ id }) => id) ?? [],

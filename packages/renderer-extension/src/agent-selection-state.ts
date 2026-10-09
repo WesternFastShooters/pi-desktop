@@ -62,6 +62,7 @@ export class DraftAgentController<Composer extends object> {
   readonly #idFactory: (sequence: number) => string;
   readonly #defaultAgent: RendererAgent;
   #enabledAgents: ReadonlySet<RendererAgent>;
+  readonly #nativeCodexEnabled: boolean;
   readonly #targetStates: TargetState[] = [];
   readonly #modelRequestGenerations = new WeakMap<MutableComposerState, number>();
   readonly #ownershipRequestGenerations = new WeakMap<MutableComposerState, number>();
@@ -76,14 +77,13 @@ export class DraftAgentController<Composer extends object> {
   constructor(options: DraftAgentControllerOptions = {}) {
     this.#idFactory = options.idFactory ?? defaultIdFactory;
     this.#enabledAgents = new Set(options.enabledAgents ?? DEFAULT_RENDERER_AGENTS);
-    if (!this.#enabledAgents.has("codex"))
-      throw new Error("Renderer enabled Agents must include Codex");
+    this.#nativeCodexEnabled = this.#enabledAgents.has("codex");
     this.#defaultAgent = options.defaultAgent ?? "codex";
 
     this.#lastSubmittedAgent = this.#defaultAgent;
   }
   setEnabledAgents(agents: readonly RendererAgent[]): void {
-    this.#enabledAgents = new Set(["codex", ...agents]);
+    this.#enabledAgents = new Set([...(this.#nativeCodexEnabled ? ["codex"] : []), ...agents.filter(agent => this.#nativeCodexEnabled || agent !== "codex")]);
   }
   get(composer: Composer): Readonly<DraftComposerState> {
     return this.#state(composer);
@@ -106,7 +106,7 @@ export class DraftAgentController<Composer extends object> {
     // A saved preference survives directory loading or plugin removal. Availability gates
     // submission; silently changing its owner to Codex would send work to the wrong Harness.
     const preferredAgent = preferredNewThreadAgent ?? this.#lastSubmittedAgent;
-    const state = this.#state(composer, isDefaultTarget(target) ? preferredAgent : "codex");
+    const state = this.#state(composer, isDefaultTarget(target) ? preferredAgent : this.#defaultAgent);
     if (isIdentifiedTarget(target)) this.#targetStates.push({ target, state });
     return state;
   }
@@ -145,7 +145,7 @@ export class DraftAgentController<Composer extends object> {
     let state = this.#targetState(target);
     if (!state) {
       state = {
-        agent: "codex",
+        agent: this.#defaultAgent,
         phase: "draft",
         composerId: this.#idFactory(++this.#composerSequence),
       };

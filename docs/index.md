@@ -6,6 +6,7 @@
 
 | 文档 | 内容与阅读时机 |
 | --- | --- |
+| [`platforms/macos/pi-desktop.md`](platforms/macos/pi-desktop.md) | Pi-only 个人封装、免登录入口、本机 Pi 复用与原生 Codex 禁用边界。 |
 | [`PRIVACY.md`](PRIVACY.md) | 公开隐私政策：项目独立性、本地存储、Harness 集成、凭据处理与数据删除。 |
 | [`project/README.zh-CN.md`](project/README.zh-CN.md) | 中文项目介绍、安装方式和功能概览；维护中文用户入口时阅读。根目录 `README.md` 为英文默认入口。 |
 | [`project/README.ko.md`](project/README.ko.md) | 韩文项目介绍、安装方式和功能概览；维护韩文用户入口时阅读。 |

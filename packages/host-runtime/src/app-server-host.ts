@@ -520,9 +520,17 @@ function isHostQuestionRequestId(value: unknown): value is HostQuestionRequestId
 /** Only an explicit codexhost transport Model selects an External Harness. */
 export function classifyCreateRequestRoute(
   request: JsonRpcRequest,
+  piOnly = false,
 ): CreateRequestRouteObservation | null {
   const route = decodeCreateRoute(request);
   if (!route) return null;
+  if (piOnly)
+    return {
+      requestMethod: "thread/start",
+      modelCarrier: "pi-transport",
+      selectedHarness: "pi",
+      selectionSource: "transport-model",
+    };
   if (route.harnessId !== "codex") {
     return {
       requestMethod: "thread/start",
@@ -1823,7 +1831,7 @@ export class AppServerHost {
     }
     let createRoute: CreateRequestRouteObservation | null;
     try {
-      createRoute = classifyCreateRequestRoute(request);
+      createRoute = classifyCreateRequestRoute(request, true);
     } catch (error) {
       await this.#writer.json(rpcError(request, -32602, errorMessage(error)));
       return;
@@ -2086,6 +2094,58 @@ export class AppServerHost {
       }
     }
     if (
+      request.method === "thread/inject_items" &&
+      isRecord(request.params) &&
+      typeof request.params.threadId === "string"
+    ) {
+      const resolution = await this.#resolveExternalThread(request.params.threadId);
+      if (resolution.kind === "error") {
+        await this.#writer.json(rpcError(request, resolution.error.code, resolution.error.message));
+        return;
+      }
+      if (resolution.kind === "external") {
+        try {
+          const items = request.params.items;
+          if (!Array.isArray(items) || items.length > 100)
+            throw new Error("Context items must be a bounded array");
+          const messages = items.map((item) => {
+            if (
+              !isRecord(item) ||
+              item.type !== "message" ||
+              !["user", "assistant", "developer", "system"].includes(String(item.role)) ||
+              !Array.isArray(item.content)
+            )
+              throw new Error("Only text context messages are supported");
+            const text = item.content
+              .map((part) => {
+                if (
+                  !isRecord(part) ||
+                  !["input_text", "output_text"].includes(String(part.type)) ||
+                  typeof part.text !== "string"
+                )
+                  throw new Error("Only text context is supported");
+                return part.text;
+              })
+              .join("\n");
+            if (text.length > 1_000_000) throw new Error("Context message is too large");
+            return { role: String(item.role), text };
+          });
+          const inject = resolution.thread.session.injectContext;
+          if (!inject) throw new Error("Harness does not support context injection");
+          const result = await inject.call(resolution.thread.session, messages);
+          if (!result.ok) {
+            const failure = mapExternalThreadHarnessError(result.error, "turn");
+            await this.#writer.json(rpcError(request, failure.code, result.error.message));
+            return;
+          }
+          await this.#writer.json(rpcEnvelope(request, { result: {} }));
+        } catch (error) {
+          await this.#writer.json(rpcError(request, -32602, errorMessage(error)));
+        }
+        return;
+      }
+    }
+    if (
       request.method.startsWith("thread/") &&
       !EXPLICIT_EXTERNAL_THREAD_METHODS.has(request.method) &&
       isRecord(request.params) &&
@@ -2157,6 +2217,10 @@ export class AppServerHost {
     request: JsonRpcRequest,
     frame: Buffer<ArrayBufferLike>,
   ): Promise<void> {
+    if (["thread/start", "turn/start", "thread/fork"].includes(request.method)) {
+      await this.#writer.json(rpcError(request, -32070, "Pi Desktop only runs Pi sessions"));
+      return;
+    }
     if (this.#options.externalOnly) {
       await this.#writer.json(
         rpcError(request, -32601, "Shared Thread service only handles external Harness Threads"),

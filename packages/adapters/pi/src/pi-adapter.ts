@@ -1,7 +1,12 @@
 import { createPiUsageStatistics } from "./pi-usage-statistics.js";
 import { fetchPiAccounts } from "./account-balance.js";
 import { createPiCredentialImports } from "./pi-credential-imports.js";
-import { PI_FAST_COMMAND, piFastModelKeys, withPiFast } from "./pi-fast-mode.js";
+import {
+  PI_CONTEXT_COMMAND,
+  PI_FAST_COMMAND,
+  piFastModelKeys,
+  withPiFast,
+} from "./pi-fast-mode.js";
 import { persistEmptyPiSession, readPiEmptySessionConfiguration } from "./pi-empty-session.js";
 import { createTwoFilesPatch, parsePatch } from "diff";
 import { randomUUID } from "node:crypto";
@@ -151,6 +156,7 @@ export interface PiTurnTransport {
   verifySessionCwd(expectedCwd: string): Promise<void>;
   selectModel(model: PiNativeModelRef): Promise<PiSessionState>;
   supportsFastMode?(): Promise<boolean>;
+  injectContext?(messages: readonly { role: string; text: string }[]): Promise<void>;
   selectFastMode?(enabled: boolean): Promise<PiSessionState>;
   selectThinkingOption(thinkingOptionId: HarnessThinkingOptionId): Promise<PiSessionState>;
   compact(
@@ -696,6 +702,28 @@ class PiHarnessSession implements HarnessSession {
     queueMicrotask(() => this.#fault(error));
   }
 
+  async injectContext(
+    messages: readonly { role: string; text: string }[],
+  ): Promise<HarnessResult<void>> {
+    if (this.#phase !== "open" || this.#active || this.#acceptingTurn || this.#configuring)
+      return {
+        ok: false,
+        error: invalidState("Pi context injection requires an idle open session"),
+      };
+    this.#configuring = true;
+    try {
+      const transport = await this.#ensureTransport();
+      if (!transport.injectContext)
+        return { ok: false, error: invalidState("Pi context injection is unavailable") };
+      await transport.injectContext(messages);
+      return { ok: true, value: undefined };
+    } catch (error) {
+      return { ok: false, error: normalizedError(error, "nativeFailure") };
+    } finally {
+      this.#configuring = false;
+    }
+  }
+
   async readSnapshot(): Promise<HarnessResult<HostThreadSnapshot>> {
     if (this.#phase !== "open") {
       return { ok: false, error: invalidState("Pi Session is not open") };
@@ -1139,7 +1167,9 @@ class PiHarnessSession implements HarnessSession {
       try {
         this.#liveCommands = piLiveCommandCatalog(
           piCommandCatalog,
-          (await transport.getCommands()).filter((command) => command.name !== PI_FAST_COMMAND),
+          (await transport.getCommands()).filter(
+            (command) => command.name !== PI_FAST_COMMAND && command.name !== PI_CONTEXT_COMMAND,
+          ),
         );
       } catch {
         // Keep the last known catalog.

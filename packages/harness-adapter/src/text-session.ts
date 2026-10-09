@@ -566,6 +566,8 @@ export interface HarnessSession {
   readonly outputs: AsyncIterable<HarnessOutput>;
   readonly commands?: HarnessCommandCapability;
 
+  /** Append reference context without starting a model Turn. */
+  injectContext?(messages: readonly { role: string; text: string }[]): Promise<HarnessResult<void>>;
   refreshUsage?(): Promise<void>;
   /** Native background work (e.g. a background command) is still running; the Session must not be released. */
   hasBackgroundWork?(): boolean;

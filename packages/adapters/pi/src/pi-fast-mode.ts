@@ -7,11 +7,19 @@ import type { HarnessModelCatalog } from "@codexhost/shared-contracts";
 import { readPiCodexProviderNames } from "./pi-credential-imports.js";
 import { decodePiModelRef, encodePiModelRef, type PiNativeModel } from "./pi-model-catalog.js";
 
+export const PI_CONTEXT_COMMAND = "pi-desktop-inject-context";
 export const PI_FAST_COMMAND = "codexhost-fast-mode";
 export const PI_FAST_ACK = "codexhost-fast-mode:";
 
 /** Loaded explicitly by Host, never installed in Pi's global settings. Off is inert. */
 export const PI_FAST_EXTENSION = `export default function(pi) {
+  pi.registerCommand("${PI_CONTEXT_COMMAND}", {
+    description: "Append side conversation reference context without a model turn",
+    handler: async (args) => {
+      const messages = JSON.parse(Buffer.from(args, "base64").toString("utf8"));
+      for (const message of messages) pi.sendMessage({ customType: "pi-desktop-context", content: message.role + ":\\n" + message.text, display: false }, { triggerTurn: false });
+    },
+  });
   let target;
   const wrapped = new Set();
   pi.on("model_select", (_event, ctx) => {

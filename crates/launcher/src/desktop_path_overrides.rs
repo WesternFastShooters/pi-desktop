@@ -1,12 +1,13 @@
 use std::ffi::OsString;
 use std::path::Path;
 
-const PATH_OVERRIDES: [&str; 5] = [
+const PATH_OVERRIDES: [&str; 6] = [
     "HOME",
     "USERPROFILE",
     "ZDOTDIR",
     "CODEX_HOME",
     "CODEX_ELECTRON_USER_DATA_PATH",
+    "PI_CODING_AGENT_DIR",
 ];
 
 /// LaunchServices/AppX do not inherit the launcher's environment. Forward only
@@ -112,6 +113,34 @@ mod tests {
                     OsString::from("1")
                 ),
             ])
+            .is_empty()
+        );
+    }
+
+    #[test]
+    fn forwards_absolute_pi_profile_but_rejects_relative_profile() {
+        let profile = std::env::temp_dir().join("Pi Desktop").join("pi");
+        assert_eq!(
+            forwarded([
+                (
+                    OsString::from("PI_CODING_AGENT_DIR"),
+                    profile.clone().into_os_string()
+                ),
+                (
+                    OsString::from("OPENAI_API_KEY"),
+                    OsString::from("synthetic-secret")
+                ),
+            ]),
+            [(
+                OsString::from("PI_CODING_AGENT_DIR"),
+                profile.into_os_string()
+            )]
+        );
+        assert!(
+            forwarded([(
+                OsString::from("PI_CODING_AGENT_DIR"),
+                OsString::from("relative")
+            ),])
             .is_empty()
         );
     }

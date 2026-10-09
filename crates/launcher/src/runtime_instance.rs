@@ -129,7 +129,24 @@ pub fn default_descriptor_path() -> io::Result<PathBuf> {
         .map(PathBuf::from)
         .map(|home| home.join("Library").join("Application Support"))
         .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "HOME is unavailable"))?;
-    Ok(root.join("codexhost").join(RUNTIME_DESCRIPTOR_FILE))
+    descriptor_path_for_data_directory(root.join("codexhost"), env::var_os("CODEXHOST_DATA_DIR"))
+}
+
+#[cfg(target_os = "macos")]
+fn descriptor_path_for_data_directory(
+    default_directory: PathBuf,
+    data_directory: Option<std::ffi::OsString>,
+) -> io::Result<PathBuf> {
+    let directory = data_directory
+        .map(PathBuf::from)
+        .unwrap_or(default_directory);
+    if !directory.is_absolute() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "CODEXHOST_DATA_DIR must be absolute",
+        ));
+    }
+    Ok(directory.join(RUNTIME_DESCRIPTOR_FILE))
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
@@ -327,6 +344,24 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::*;
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn custom_data_directory_isolates_descriptor_and_guard() {
+        let default = env::temp_dir().join("codexhost");
+        let pi = env::temp_dir().join("Pi Desktop").join("host");
+        let official = descriptor_path_for_data_directory(default.clone(), None).unwrap();
+        let isolated =
+            descriptor_path_for_data_directory(default.clone(), Some(pi.clone().into_os_string()))
+                .unwrap();
+        assert_ne!(official, isolated);
+        assert_eq!(isolated.parent(), Some(pi.as_path()));
+        assert_ne!(
+            official.with_file_name(LAUNCHER_GUARD_FILE),
+            isolated.with_file_name(LAUNCHER_GUARD_FILE)
+        );
+        assert!(descriptor_path_for_data_directory(default, Some("relative".into())).is_err());
+    }
 
     fn descriptor(control_port: u16) -> RuntimeDescriptor {
         RuntimeDescriptor::new(10, control_port, "0123456789abcdef0123456789abcdef".into())

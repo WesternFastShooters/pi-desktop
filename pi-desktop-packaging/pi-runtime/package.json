@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "1.1.0",
+    "@injaneity/pi-computer-use": "0.5.1",
+    "pi-chrome-use": "1.1.1"
+  }
+}

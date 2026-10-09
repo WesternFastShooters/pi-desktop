@@ -729,7 +729,7 @@ export function mountComposerAgentControl(
       }
       const next = mountRendererAgentPicker(
         composerId,
-        ["codex", ...plugins.map(({ id }) => id)],
+        [...(enabledAgents.includes("codex") ? ["codex"] : []), ...plugins.map(({ id }) => id)],
         onSelect,
         onDownload,
         onOpenProviderPicker,
