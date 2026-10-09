@@ -1,359 +1,129 @@
 <div align="center">
+<img src="pi-desktop-packaging/assets/pi-desktop.png" alt="Pi Desktop 图标" width="112" />
 
-# CodexHost
+# Pi Desktop
 
-**Run Pi and other Harnesses inside Codex Desktop**
+**给本机 Pi 的独立 macOS 桌面应用。打开即可使用，不需要 OpenAI 登录。**
 
-We believe **Codex Desktop** offers the best desktop development experience today.
-
-But **Codex** isn't the only great **Agent Harness** — **Claude Code** and **Pi** are great too.
-
-**CodexHost** lets you run other **Harnesses** natively inside **Codex Desktop** and have them work together.
-
-⭐ If CodexHost is useful to you, please give it a star! ⭐
-
-<p>
-  <a href="https://pi.dev/"><img alt="Pi" src="https://img.shields.io/badge/Pi-000000?logo=pi&logoColor=white" /></a>
-  <a href="https://openai.com/codex/"><img alt="Codex" src="docs/imgs/badge-codex.svg" /></a>
-  <a href="https://code.claude.com/docs/en/quickstart"><img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-D97757?logo=claudecode&logoColor=white" /></a>
-  <a href="https://opencode.ai/docs/"><img alt="OpenCode" src="docs/imgs/badge-opencode.svg" /></a>
-  <a href="https://grok.com/"><img alt="Grok" src="https://img.shields.io/badge/Grok-000000?logo=x&logoColor=white" /></a>
-  <a href="https://github.com/can1357/oh-my-pi"><img alt="Oh My Pi" src="docs/imgs/badge-omp-v5.svg" /></a><br />
-  <a href="https://github.com/deepseek-ai/deepseek-harness"><img alt="DSH" src="https://img.shields.io/badge/DSH-4D6BFE?logo=deepseek&logoColor=white" /></a>
-  <a href="https://antigravity.google/product/antigravity-cli"><img alt="AGY" src="docs/imgs/badge-agy.svg" /></a>
-  <a href="https://kiro.dev/docs/cli/"><img alt="Kiro CLI" src="docs/imgs/badge-kiro.svg" /></a>
-  <a href="https://www.codebuddy.cn/home/"><img alt="CodeBuddy" src="docs/imgs/badge-codebuddy.svg" /></a>
-  <a href="https://www.workbuddy.ai/docs/workbuddy/Quickstart"><img alt="WorkBuddy" src="docs/imgs/badge-workbuddy.svg" /></a>
-  <a href="https://cursor.com/docs/cli/overview"><img alt="Cursor" src="docs/imgs/badge-cursor.svg" /></a>
-  <a href="https://hermes-agent.nousresearch.com/docs"><img alt="Hermes" src="docs/imgs/badge-hermes.svg" /></a>
-  <a href="https://qoder.com/cli"><img alt="Qoder" src="docs/imgs/badge-qoder.svg" /></a>
-  <a href="https://moonshotai.github.io/kimi-code/"><img alt="Kimi Code" src="docs/imgs/badge-kimi.svg" /></a>
-</p>
-<br />
-
-<p align="center"><a href="https://github.com/BytePioneer-AI/codex-host/releases"><strong>Download</strong></a> · <a href="#cross-agent-collaboration">Cross-Agent Collaboration</a> · <a href="#remote-harness">Remote</a> · <a href="#join-the-community">微信交流群</a> · <a href="docs/project/README.zh-CN.md">简体中文</a> · <a href="docs/project/README.ko.md">한국어</a></p>
-
-<br />
+Pi-only · 侧边聊天 · 电脑控制 · 浏览器控制
 
 </div>
 
-## Sponsors
+Pi Desktop 基于 [CodexHost](https://github.com/BytePioneer-AI/codex-host)，把本机 [Pi](https://pi.dev/) 接入独立桌面窗口。默认只使用 Pi；保留你在 Pi 中配置的模型、凭证和扩展。
 
-<details open>
-<summary>Click to collapse</summary>
+当前为个人实验版本。已在 Apple Silicon Mac 上实际验收。
 
-<table>
-<tr>
-<td width="180"><a href="https://aixlau.me/register?aff=HOST"><img src="docs/imgs/sponsors/xinglian-ai.png" alt="Xinglian AI" width="160"></a></td>
-<td>Thanks to <b>星链AI (Xinglian AI)</b> for sponsoring this project! Xinglian AI provides a stable, efficient API relay service for AI coding tools such as Codex and CodexHost, with quick access to mainstream AI models: stable routes · fast responses · multi-model compatibility · ready to use out of the box. It cuts the cost of configuring and switching APIs, so you can focus on coding. <a href="https://aixlau.me/register?aff=HOST">Try it now →</a></td>
-</tr>
-<tr>
-<td width="180"><a href="https://vibeapi.cc/sign-up?aff=AOYp"><img src="docs/imgs/sponsors/vibeapi.jpg" alt="VibeAPI" width="160"></a></td>
-<td>Thanks to <b>VibeAPI</b> for sponsoring this project! Built for power developers and teams, VibeAPI provides unified access to mainstream AI models, focusing on the Codex and Claude series with a self-managed, traceable account pool. It offers ultra-fast time to first token, 99.9% SLA availability, and cache hit rates of 95%+. Human technical support is available 24/7, with corporate invoicing and enterprise partnerships fully supported. <a href="https://vibeapi.cc/sign-up?aff=AOYp">Grab some cyber goodies →</a></td>
-</tr>
-</table>
-</details>
+**[下载 macOS Apple Silicon DMG](https://github.com/WesternFastShooters/pi-desktop/releases/latest)**
 
-<a name="support"></a>
-<details>
-<summary><strong>☕ If you'd like to support CodexHost's ongoing development, feel free to buy me a coffee</strong></summary>
+## 可以做什么
 
-<p align="center">
-  <img src="docs/imgs/sponsor-wechat.png" width="200" alt="WeChat Pay" /><br />
-  <sub>Scan with WeChat · Any amount is appreciated, and every bit of support means a lot.</sub>
-</p>
-
-CodexHost is free and open source. Sponsorship helps cover the real costs of keeping it going:
-
-- 🛠️ **Development time**: new features, bug fixes, and reviewing community PRs
-- 🤖 **AI subscriptions**: paid plans for the Harnesses and AI services CodexHost integrates with, so every integration can be tested and kept up to date
-
-<p align="center">❤️ Thank you for your support ❤️</p>
-
-</details>
-
-## Interface Preview
-
-No more switching apps: **Pi, Claude Code, Grok Build, and ten-plus other Harnesses** all run right inside the same Codex Desktop window.
-
-https://github.com/user-attachments/assets/c48192d7-23ff-4f6e-b61a-6345a655bb76
-
-### Interface
-
-<div align="center">
-  <img width="90%" src="docs/imgs/codexhost-native-overview.png" alt="Claude Code, Pi, Grok Build, and Oh My Pi sessions running in Codex Desktop, with Diff review, Fork, Worktree, and Agent switching">
-</div>
-
-## Quick Start
-
-**Option 1: npm** (macOS / Windows / Linux)
-
-```bash
-npm install -g @codexhost/cli
-codexhost
-```
-
-**Option 2: Installer** (macOS / Windows)
-
-Grab the installer for your platform from [Releases](https://github.com/BytePioneer-AI/codex-host/releases).
-
-> Linux is supported on x64 and ARM64. See the [Linux guide](docs/platforms/linux/linux.md).
-
-Run `codexhost update` to check for the latest release and prepare an upgrade from your terminal. Quit Codex Desktop first if an upgrade is available. Once preparation completes, the background updater installs it and restarts codexhost. An up-to-date installation exits without changes.
-
-<details>
-<summary>Installation troubleshooting</summary>
-
-**codexhost does not start, or Codex opens without codexhost features**
-
-Run `codexhost console` (Windows: Start Menu → "codexhost console") to open the local console at `http://127.0.0.1:4399/`. It shows why the last start failed, the Codex Desktop version, Host Runtime logs, and can update codexhost while Codex is not running. It starts together with codexhost: installer launches open it in your browser, and terminal launches print its address.
-
-**macOS: "App can't be verified" on first launch**
-
-```bash
-xattr -dr com.apple.quarantine /Applications/codexhost.app
-```
-
-**Windows: using a portable Codex Desktop**
-
-1. Point `CODEXHOST_INSTALL_ROOT` at the folder where you extracted Codex Desktop:
-
-   ```powershell
-   [Environment]::SetEnvironmentVariable("CODEXHOST_INSTALL_ROOT", "D:\CodexPortable", "User")
-   ```
-
-2. Quit Codex Desktop completely, open a new terminal, and run `codexhost`.
-
-</details>
-
-### Highlights
-
-<table>
-  <tr>
-    <td colspan="2" valign="top">
-      <p><strong>Full workspace</strong><br /><sub>Sessions from different Harnesses share one sidebar; switch Agents from the bottom-right of the composer</sub></p>
-      <div align="center">
-        <img width="90%" src="docs/imgs/codexhost-full-workspace.png" alt="The complete CodexHost workspace in Codex Desktop, showing the project tree, conversation area, and multiple Agent selectors">
-      </div>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <p><strong>Diff review panel</strong><br /><sub>Every turn summarizes its changes; click Review to open the full Diff on the right</sub></p>
-      <img src="docs/imgs/highlight-diff-review.png" alt="Change summary card in the conversation and the full Diff in the review panel">
-    </td>
-    <td width="50%" valign="top">
-      <p><strong>Fork from any message</strong><br /><sub>Branch in the current workspace, or in a new Worktree for parallel work</sub></p>
-      <img src="docs/imgs/highlight-fork-worktree.png" alt="Menu for creating a branch from a message, in this workspace or a new worktree">
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <p><strong>Delegate to other Agents with #</strong><br /><sub>Each Agent runs in its own session, in parallel · <a href="#cross-agent-collaboration">Learn more</a></sub></p>
-      <img src="docs/imgs/highlight-delegation.png" alt="Typing # to pick Codex, Claude Code, Grok and other Agents, each task running in its own session">
-    </td>
-    <td width="50%" valign="top">
-      <p><strong>Tool calls and thinking</strong><br /><sub>Expand any edit, command, or thinking step to see the details</sub></p>
-      <img src="docs/imgs/highlight-tool-details.png" alt="An expanded edit entry showing the Diff of a newly created file">
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <p><strong>Visible Subagents</strong><br /><sub>Each Subagent has its own icon; open its full conversation on the right</sub></p>
-      <img src="docs/imgs/highlight-subagent.png" alt="Status of 4 Subagents in the main conversation, with one opened on the right">
-    </td>
-    <td width="50%" valign="top">
-      <p><strong>Remote development</strong><br /><sub>Add a VPS as a project and run Agents directly on the remote machine · <a href="#remote-harness">Learn more</a></sub></p>
-      <img src="docs/imgs/highlight-remote.png" alt="A remote VPS project in the sidebar, with the conversation returning the remote working directory">
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <p><strong>Usage at a glance</strong><br /><sub>Cache hit rate, cost estimate, and context usage, live</sub></p>
-      <img src="docs/imgs/highlight-usage.png" alt="Usage popover: context, cache hit rate, cache reads and writes, total tokens, cost estimate">
-    </td>
-    <td width="50%" valign="top">
-      <p><strong>One-click account import</strong><br /><sub>Copy your locally signed-in Codex and Grok credentials to Pi, with live quota</sub></p>
-      <img src="docs/imgs/highlight-account-import.png" alt="Account settings: 5-hour and 7-day remaining quota, and accounts imported into Pi">
-    </td>
-  </tr>
-  <tr>
-    <td colspan="2" valign="top">
-      <p><strong>Mermaid diagram rendering</strong><br /><sub>Left: Codex Desktop + Pi renders the diagram; right: the Pi TUI only shows the source</sub></p>
-      <img src="docs/imgs/codex-vs-pi-agent-tui.png" alt="Comparison of Mermaid diagram rendering between Pi with Codex Desktop and the Pi Agent TUI">
-    </td>
-  </tr>
-</table>
-
-## Feature Status
-
-Every Harness gets Codex Desktop's native Edit Diff, Fork, message editing, and slash commands.
-
-<details>
-<summary>Show full feature matrix</summary>
-
-| Capability | <a href="https://pi.dev/"><img alt="Pi" src="https://img.shields.io/badge/-000000?logo=pi&logoColor=white" /></a> | <a href="https://github.com/can1357/oh-my-pi"><img alt="Oh My Pi" src="docs/imgs/harness-icon-omp-v5.svg" /></a> | <a href="https://code.claude.com/docs/en/quickstart"><img alt="Claude Code" src="https://img.shields.io/badge/-D97757?logo=claudecode&logoColor=white" /></a> | <a href="https://opencode.ai/docs/"><img alt="OpenCode" src="docs/imgs/harness-icon-opencode.svg" /></a> | <a href="https://grok.com/"><img alt="Grok" src="https://img.shields.io/badge/-000000?logo=x&logoColor=white" /></a> | <a href="https://github.com/deepseek-ai/deepseek-harness"><img alt="DSH" src="https://img.shields.io/badge/-4D6BFE?logo=deepseek&logoColor=white" /></a> | <a href="https://antigravity.google/product/antigravity-cli"><img alt="AGY" src="docs/imgs/harness-icon-agy.svg" /></a> | <a href="https://www.codebuddy.cn/home/"><img alt="CodeBuddy" src="docs/imgs/harness-icon-codebuddy.svg" width="24" height="24" /></a> | <a href="https://www.workbuddy.ai/docs/workbuddy/Quickstart"><img alt="WorkBuddy" src="packages/adapters/workbuddy/assets/icon.svg" width="24" height="24" /></a> | <a href="https://cursor.com/docs/cli/overview"><img alt="Cursor" src="docs/imgs/harness-icon-cursor.svg" /></a> | <a href="https://hermes-agent.nousresearch.com/docs"><img alt="Hermes" src="docs/imgs/harness-icon-hermes.svg" /></a> | <a href="https://qoder.com/cli"><img alt="Qoder" src="packages/adapters/qoder/assets/icon.svg" width="28" height="28" /></a> | <a href="https://moonshotai.github.io/kimi-code/"><img alt="Kimi Code" src="packages/adapters/kimi-code/assets/icon.svg" width="28" height="28" /></a> |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| Streaming responses | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Tool status | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Edit Diff | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Questions / cancellation | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Model / Thinking selection | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Tool approvals | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Permission modes | — | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Cross-Agent task collaboration | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
-| Usage | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
-| Fork | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ◐ |
-| Context compaction | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | ✅ | ✅ | ✅ |
-| Slash commands | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Edit previous message | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-
-</details>
-
-## Cross-Agent Collaboration
-
-Type `#` in the chat input to choose an Agent to delegate a task to, or to find commands and skills available for the selected Harness.
-
-Ask the current Agent to hand off a self-contained task to another Harness. For example:
-
-> Have `#claude-code` review this change on its own and flag any compatibility risks.
->
-> Have `#pi` figure out why this test is flaky.
->
-> Have `#omp` implement this feature while I keep working on the docs.
->
-> Have `#opencode` verify this fix in a separate Thread and run the related tests.
-
-CodexHost spins up a separate Native Session in the target Harness. It shows up in the Codex Desktop conversation list, so you can open it anytime to check progress or pick up the conversation.
-
-<details>
-<summary><h3 id="remote-harness">Remote Harness</h3></summary>
-
-Drive Harnesses on another machine from your local Codex Desktop: tasks run remotely, the UI stays local. Both machines need the same codexhost version.
-
-| Remote machine | How to connect |
+| 功能 | 效果 |
 | --- | --- |
-| macOS / Linux | [SSH](#ssh) |
-| Windows | [Remote Control](#remote-control-experimental) (experimental) |
+| 本机 Pi 聊天 | 使用本机已安装的 Pi 和 `~/.pi/agent`，在桌面窗口中选择模型、聊天、查看工具结果。 |
+| 无 OpenAI 登录门槛 | 打开应用即可进入。调用模型仍需要你自己的 Pi 模型配置。 |
+| Pi-only | 代理选择与 `#` 菜单只列 Pi，不提供 Codex 生成入口。 |
+| 侧边聊天 | 从主聊天打开并排会话，继承主聊天历史，再独立追问。 |
+| 电脑控制 | Pi 使用 `find_roots`、`observe_ui`、`act_ui` 等工具查找、观察和操作 macOS 应用。 |
+| 浏览器控制 | Pi 使用 `browser_execute` 在独立 Chrome 窗口中打开网页、读取内容和点击。 |
+| 独立安装 | 使用自己的应用身份、数据目录和 Pi 图标，不覆盖原 ChatGPT 应用。 |
 
-#### SSH
+## 看看效果
 
-Before you start, add the remote machine in Codex Desktop under **Settings → Connections → SSH**. Your local machine can run macOS, Linux, or Windows.
+下面均为本项目实际运行截图，不是设计稿。外壳中的部分旧品牌文字仍可能显示。
 
-<div align="center">
-  <img width="70%" src="docs/imgs/remote-ssh-connections.png" alt="SSH connections added under Settings → Connections → SSH in Codex Desktop">
-</div>
+### Pi 桌面聊天
 
-1. Install and start codexhost on the remote machine:
+![Pi Desktop 主界面](docs/pi-desktop/screenshots/main.png)
 
-   ```bash
-   npm install -g @codexhost/cli
-   codexhost remote install
-   codexhost remote start
-   codexhost remote status
-   ```
+### 侧边聊天
 
-2. On your local machine, launch Codex Desktop through codexhost and open the SSH workspace.
-3. Pick a Harness from the composer's Agent / Model selector.
+截图展示新建侧边聊天布局；上下文继承与回复已另行实际验收。
 
-[SSH setup, diagnostics, and uninstall →](docs/platforms/remote/remote-ssh-host.md)
+![主聊天与侧边聊天布局](docs/pi-desktop/screenshots/side-chat.png)
 
-#### Remote Control (Experimental)
+### Pi 控制工具
 
-Use Harnesses on a Windows machine from another computer, built on the pairing and sign-in of Codex Desktop's official Remote Control.
+![实际浏览器控制记录](docs/pi-desktop/screenshots/tools.png)
 
-Before you start, make sure official Remote Control can already run Codex tasks. No public services or ports are opened, and Harness credentials never leave the Windows machine.
+已验证的例子：Pi 操作计算器输入 `2 + 3`，工具读回 `5`；Pi 在 Chrome 点击 Example Domain 的链接，读回 IANA 页面标题和地址。
 
-[Remote Control setup, transport boundary, and diagnostics →](docs/platforms/remote/remote-control-host.md)
+## 使用前准备
 
-</details>
+- Apple Silicon Mac。Intel 构建路径存在，但本项目尚未在 Intel 上验收。
+- 已配置可用模型的本机 Pi。也可以使用构建时包含的 Pi 后备运行环境。
+- 浏览器控制需要安装 Google Chrome。
+- 电脑控制需要 macOS 辅助功能和屏幕录制授权。普通聊天不依赖这两项权限。
 
-<details>
-<summary><h3>How it works</h3></summary>
+**没有 OpenAI 登录要求，不等于无需模型凭证。** 模型请求使用你在 Pi 中配置的提供商和凭证；本仓库不提供 API key。
 
-Most multi-agent clients build their own chat UI and plug Harnesses in through a common protocol.
+## 下载安装
 
-CodexHost does it differently:
+1. 打开 [Releases](https://github.com/WesternFastShooters/pi-desktop/releases/latest)，下载 `Pi-Desktop-macos-arm64.dmg`。
+2. 打开 DMG，将 `Pi Desktop.app` 拖入 `Applications`。
+3. 从应用程序目录打开 Pi Desktop，选择本机 Pi 中已配置的模型。
 
-- **Desktop:** extends the official Codex Desktop via CDP / Electron Inspector — no rebuilt chat UI, no patched installer.
-- **Protocol:** a CLI Shim sits in front of the official app-server and passes native Codex requests through untouched.
-- **Harnesses:** each Harness is integrated through its own native interface where one exists (Pi over RPC, Claude Code via the Agent SDK), falling back to [ACP](https://agentclientprotocol.com/) otherwise. Streaming, tool status, diffs, approvals, and questions all render in Codex Desktop's native UI.
-- **Orchestration:** delegated tasks run as independent native sessions in the target Harness; the caller can wait for the result or let it run in the background.
+当前提供 Apple Silicon 版。安装包使用 ad-hoc 签名，尚未 Apple 公证。若 macOS 阻止打开，可在系统设置 → 隐私与安全性中查看该应用的提示并选择仍要打开；不同 macOS 版本的提示可能不同。不建议关闭系统安全保护。参见 [Apple 打开应用说明](https://support.apple.com/102445)。
 
-</details>
+Release 同时提供 `SHA256SUMS.txt` 用于校验。预构建应用包含第三方桌面外壳；该外壳仍受其原有许可条款约束，仓库 LGPL 许可证不覆盖第三方外壳。
 
-<a id="join-the-community"></a>
+## 从源码构建
 
-## 微信交流群
+请自行准备合法取得的官方桌面应用副本；不要把原 `/Applications/ChatGPT.app` 当作待修改目标。
 
-<table align="center">
-  <tr>
-    <td>
-      <strong>微信交流群</strong><br />
-      <sub>Scan the QR code to join our WeChat group and chat about CodexHost.</sub>
-      <ul>
-        <li><sub>Get help with installation</sub></li>
-        <li><sub>Share feature ideas and feedback</sub></li>
-        <li><sub>Talk about development</sub></li>
-        <li><sub>For bugs, please open an <strong>issue</strong></sub></li>
-      </ul>
-      <sub><strong>Contributions are welcome.</strong></sub>
-    </td>
-    <td align="center">
-      <img width="230" alt="WeChat group QR code" src="docs/imgs/wechat-group-4-qrcode.jpg" />
-    </td>
-  </tr>
-</table>
+已验收的外壳版本为 `26.1007.21159` / build `20052`。其他版本需重新验证兼容性。
 
-## Development
-
-Please read the [contributing guide](CONTRIBUTING.md) before opening an issue or PR. See [repository maintenance automation](docs/operations/repository-maintenance.md) for PR title labels, CI summaries, and pre-release checks.
-
-Requirements: the official Codex Desktop, Node.js 22.19+ or 24, and Rust.
+需要 Git、Node.js 24/npm、Python 3、Rust 与 Xcode Command Line Tools。
 
 ```bash
-git clone https://github.com/BytePioneer-AI/codex-host
-cd codex-host
-npm ci
-npm start
+git clone https://github.com/WesternFastShooters/pi-desktop.git
+cd pi-desktop
+
+# 准备锁定版本的 Pi 运行环境；不安装进全局 ~/.pi/agent。
+mkdir -p work/pi-runtime/bin
+cp pi-desktop-packaging/pi-runtime/package*.json work/pi-runtime/
+npm ci --ignore-scripts --prefix work/pi-runtime
+ln -s ../node_modules/.bin/pi work/pi-runtime/bin/pi
+
+# 输入独立官方应用副本；输出目录必须尚不存在。
+bash pi-desktop-packaging/build.sh "/path/to/official-copy.app"   "$PWD/work/pi-runtime" "$PWD/work/pi-build"
 ```
 
-To run the current source with a specific runtime version, use `npm start 0.12.0` (prereleases such as `0.13.0-rc.1` are also accepted). Host status, console version and update-check version reporting use this value. Without a version argument the version remains `<workspace-version>-dev`; `npm start 0.12.0 -- --no-build` reuses artifacts after building once. The override lasts for this launch and does not modify version files or publish packages. Source installations still lack packaged self-update resources; remote npm installation downloads the published package with that version, not the local source.
+构建脚本拉取固定 CodexHost 提交，应用随仓库交付的补丁，执行隔离测试，再生成 `Pi Desktop.app` 和 `Pi Desktop.dmg`。
 
+构建后，将 `Pi Desktop.app` 拖入 `/Applications`，再打开应用。本机 Pi 优先；缺少本机 Pi 时使用包内后备。当前签名为 ad-hoc，尚未做 Apple 公证；干净系统首次安装仍需验证。
 
-### Runtime Architecture
+详细构建说明见 [打包说明](pi-desktop-packaging/README.txt)。
 
-Using Pi as an example, here is how a single request flows from left to right: Desktop → shared layer → Pi plugin → native process.
+## 配置和数据
 
-<div align="center">
-  <img width="100%" src="docs/imgs/pi-runtime-architecture.png" alt="Runtime architecture using Pi: Desktop to the shared layer, then the Pi plugin and native process">
-</div>
+```text
+本机 Pi → ~/.pi/agent
+Pi Desktop 独立运行数据 → ~/Library/Application Support/Pi Desktop/
+```
 
-### Adding a Harness
+Pi 配置、凭证、扩展和会话与本机 Pi 共用。聊天会产生新的 Pi 会话数据；应用不会替你重写原模型配置和凭证。
 
-Most of the work is implementing the plugin's Manifest, factory, Adapter, and Session, plus the native communication and translation logic. The Renderer still has some hard-coded wiring, so full Desktop integration takes extra work.
+桌面外壳、Host 与 Electron 的数据分别隔离。原 ChatGPT 应用不需要退出或修改。
 
-Tip: point your coding Agent at the in-repo [codexhost-add-harness Skill](.agents/skills/codexhost-add-harness/SKILL.md). It covers plugin structure, the shared Adapter interface, capability implementation, and testing requirements.
+浏览器使用每个 Pi 会话独立的 Chrome profile，不使用内嵌浏览器，也不接管已有 Chrome 会话。电脑工具优先复用本机已经配置的 `pi-computer-use`；缺少时使用包内后备，避免同名工具重复注册。
 
-## Acknowledgements
+## 验证范围
 
-- Thanks to the [LINUX DO](https://linux.do/) community for their ongoing support.
-- Thanks to [Paseo](https://github.com/getpaseo/paseo), whose approach to multi-Harness integration and architecture inspired ours.
+- 实际通过：无登录进入、Pi 模型回复、历史恢复、Pi-only 菜单、侧边上下文继承与回复。
+- 实际通过：计算器 `2+3=5`、浏览器真实点击跳转、退出重开。
+- 通过：安装包校验、深度严格签名、安装到 `/Applications` 后的文件一致性。
+- 通过：6 项打包测试、4 项 Rust 隔离测试、38 项 Renderer/Host 聚焦测试、124 项 Pi/上下文串行测试。
+- 未覆盖：Intel Mac、干净系统首次授权与安装、Apple 公证、所有后续官方外壳版本。
+- Pi 图标资源和应用配置通过检查；本机 Dock 像素截图接口受限，未将静态资源检查当作 Dock 视觉验收。
 
-## Contributors
+这些是本机验收结果，不代表 GitHub Actions 已执行 Pi Desktop 的完整构建。仓库保留的上游工作流不是本项目的发布流水线，本仓库暂时关闭 Actions。
 
-Thanks to everyone who has contributed to CodexHost.
+## 来源与许可证
 
-<a href="https://github.com/BytePioneer-AI/codex-host/graphs/contributors">
-  <img alt="CodexHost contributors" src="https://contrib.rocks/image?repo=BytePioneer-AI/codex-host" />
-</a>
+- [CodexHost](https://github.com/BytePioneer-AI/codex-host)：LGPL-3.0-only；基于 `08c7d65dddb03a79d5b311d47a0381c299316a3b`，完整源码及 [LICENSE](LICENSE) 保留。
+- [Pi](https://github.com/badlogic/pi-mono)、[pi-computer-use](https://github.com/injaneity/pi-computer-use)、[pi-chrome-use](https://github.com/citrolabs/pi-chrome-use)：依赖版本锁定，原许可证随安装依赖保留。
+- 本项目修改、打包代码和 Pi 图标按仓库 LGPL-3.0-only 提供。第三方桌面外壳不属于本仓库源码许可证。
 
-## Star History
+Pi Desktop 是独立社区实验，不是 OpenAI 官方产品。
 
-<a href="https://www.star-history.com/?repos=bytepioneer-ai%2Fcodex-host&type=date&legend=top-left">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=bytepioneer-ai/codex-host&type=date&theme=dark&legend=top-left" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=bytepioneer-ai/codex-host&type=date&legend=top-left" />
-    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=bytepioneer-ai/codex-host&type=date&legend=top-left" />
-  </picture>
-</a>
+[上游项目文档](https://github.com/BytePioneer-AI/codex-host#readme) · [实现说明](docs/platforms/macos/pi-desktop.md)
